@@ -1,10 +1,9 @@
 // src/utils.rs
 //use crate::ESQError;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use toml;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -71,9 +70,13 @@ impl std::fmt::Display for ESQError {
             ESQError::AuthError => write!(f, "Authentication failed"),
             ESQError::NetworkError(msg) => write!(f, "Network error: {}", msg),
             ESQError::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            ESQError::DateParseError(msg) => write!(f, "Date error: {}\nSee accepted formats at https://docs.rs/dateparser/latest/dateparser/#accepted-date-formats", msg),
+            ESQError::DateParseError(msg) => write!(
+                f,
+                "Date error: {}\nSee accepted formats at https://docs.rs/dateparser/latest/dateparser/#accepted-date-formats",
+                msg
+            ),
             ESQError::IOError(err) => write!(f, "IO error: {}", err),
-            ESQError::ValidationError(msg) => write!(f, "Validation error: {}", msg),   
+            ESQError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             ESQError::ESError(msg) => write!(f, "Elasticsearch error: {}", msg),
             ESQError::NotYetImplemented(msg) => write!(f, "Not yet implemented: {}", msg),
         }
@@ -95,30 +98,33 @@ pub fn load_config(config_file: &PathBuf) -> Result<Option<Config>, ESQError> {
 pub fn save_config(config: &Config, config_file: &PathBuf) -> Result<(), ESQError> {
     if let Some(parent_dir) = config_file.parent() {
         if !parent_dir.exists() {
-            fs::create_dir_all(&parent_dir)?;
+            fs::create_dir_all(parent_dir)?;
             set_dir_permissions(parent_dir)?;
         }
     }
 
     let toml = toml::to_string(&config)?;
-    fs::write(&config_file, toml)?;
+    fs::write(config_file, toml)?;
 
-    let metadata = fs::metadata(&config_file)?;
+    let metadata = fs::metadata(config_file)?;
     let mut perms = metadata.permissions();
     perms.set_mode(0o600);
-    fs::set_permissions(&config_file, perms)?;
+    fs::set_permissions(config_file, perms)?;
     Ok(())
 }
 
 fn set_dir_permissions(dir: &Path) -> Result<(), ESQError> {
     let metadata = fs::metadata(dir)?;
     let mut perms = metadata.permissions();
-    perms.set_mode(0o700); 
+    perms.set_mode(0o700);
     fs::set_permissions(dir, perms)?;
     Ok(())
 }
 
-pub fn add_auth(request: reqwest::blocking::RequestBuilder, config: &Config) -> reqwest::blocking::RequestBuilder {
+pub fn add_auth(
+    request: reqwest::blocking::RequestBuilder,
+    config: &Config,
+) -> reqwest::blocking::RequestBuilder {
     if let (Some(username), Some(password)) = (&config.default.username, &config.default.password) {
         request.basic_auth(username, Some(password))
     } else {

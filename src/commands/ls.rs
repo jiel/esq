@@ -1,6 +1,6 @@
 // src/commands/ls.rs
-use crate::utils::*;
 use crate::elasticsearch::client::ElasticsearchClient;
+use crate::utils::*;
 use serde_json::Value;
 
 fn display_indices(indices: &[Value]) {
@@ -13,12 +13,14 @@ fn display_indices(indices: &[Value]) {
 
 pub fn handle_ls_command(existing_config: Option<Config>) -> Result<(), ESQError> {
     let config = existing_config
-        .ok_or_else(|| ESQError::ConfigError("No configuration found. Please login first.".to_string()))?
+        .ok_or_else(|| {
+            ESQError::ConfigError("No configuration found. Please login first.".to_string())
+        })?
         .clone();
-    
+
     let es = ElasticsearchClient::new(config)?;
     let indices = es.list_indices()?;
     display_indices(&indices);
-    
+
     Ok(())
 }

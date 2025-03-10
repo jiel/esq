@@ -1,6 +1,6 @@
-use serde_json::{json, Value};
 use crate::utils::ESQError;
 use dateparser::parse;
+use serde_json::{Value, json};
 
 #[derive(Clone)]
 pub struct SearchQueryBuilder {
@@ -57,7 +57,12 @@ impl SearchQueryBuilder {
         self
     }
 
-    pub fn with_time_range(mut self, from: Option<&str>, to: Option<&str>, latency: &str) -> Result<Self, ESQError> {
+    pub fn with_time_range(
+        mut self,
+        from: Option<&str>,
+        to: Option<&str>,
+        latency: &str,
+    ) -> Result<Self, ESQError> {
         let mut range = json!({
             "@timestamp": {}
         });
@@ -66,7 +71,10 @@ impl SearchQueryBuilder {
             if let Ok(from_dt) = parse(from_str) {
                 range["@timestamp"]["gte"] = json!(from_dt.to_rfc3339());
             } else {
-                return Err(ESQError::DateParseError(format!("Invalid from date: {}", from_str)));
+                return Err(ESQError::DateParseError(format!(
+                    "Invalid from date: {}",
+                    from_str
+                )));
             }
         }
 
@@ -74,7 +82,10 @@ impl SearchQueryBuilder {
             if let Ok(to_dt) = parse(to_str) {
                 range["@timestamp"]["lt"] = json!(to_dt.to_rfc3339());
             } else {
-                return Err(ESQError::DateParseError(format!("Invalid to date: {}", to_str)));
+                return Err(ESQError::DateParseError(format!(
+                    "Invalid to date: {}",
+                    to_str
+                )));
             }
         } else {
             range["@timestamp"]["lt"] = json!(format!("now-{}", latency));
@@ -83,14 +94,15 @@ impl SearchQueryBuilder {
         self.query_range = Some(json!({
             "range": range
         }));
-        
+
         Ok(self)
     }
 
     pub fn with_pit(mut self, use_pit: bool) -> Self {
         self.use_pit = use_pit;
         if use_pit {
-            self.sort_order = json!([{"@timestamp": {"order": "asc"}}, {"_shard_doc": {"order": "asc"}}]);
+            self.sort_order =
+                json!([{"@timestamp": {"order": "asc"}}, {"_shard_doc": {"order": "asc"}}]);
         }
         self
     }
@@ -101,7 +113,6 @@ impl SearchQueryBuilder {
             "size": self.size,
         });
 
-        
         if let Some(fields) = self.source_fields {
             if fields.is_empty() {
                 query["_source"] = json!(false);
@@ -137,4 +148,4 @@ impl SearchQueryBuilder {
 
         query
     }
-} 
+}

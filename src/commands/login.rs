@@ -1,12 +1,12 @@
 // src/commands/login.rs
 // Import necessary libraries
-use std::io::{self, Write};
 use reqwest;
 use rpassword;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
-use crate::utils::*;
 use crate::utils::DefaultConfig;
+use crate::utils::*;
 
 // Structure to hold the login context
 struct LoginContext {
@@ -16,13 +16,9 @@ struct LoginContext {
 impl LoginContext {
     // Create a new LoginContext with the provided configuration
     fn new(config: DefaultConfig) -> Self {
-        Self {
-            config,
-        }
+        Self { config }
     }
-
 }
-
 
 // Get the URL from the user or existing configuration
 fn get_url(url: &Option<String>, existing_config: &Option<Config>) -> Result<String, ESQError> {
@@ -85,9 +81,8 @@ fn get_credentials(existing_config: &Option<Config>) -> Result<(String, String),
     };
 
     let password = rpassword::prompt_password("Password: ")?;
-    
-    return Ok((username, password));
-    //Err(ESQError::AuthError)
+
+    Ok((username, password))
 }
 
 // Test the connection to the Elasticsearch server
@@ -119,22 +114,34 @@ fn test_connection(url: &str, config: &DefaultConfig) -> Result<bool, ESQError> 
 }
 
 // Function to attempt a connection to the Elasticsearch server
-fn attempt_connection(url: &str, login_context: &mut LoginContext, config_file: &PathBuf) -> Result<(), ESQError> {
-    if test_connection(&url, &login_context.config)? {
+fn attempt_connection(
+    url: &str,
+    login_context: &mut LoginContext,
+    config_file: &PathBuf,
+) -> Result<(), ESQError> {
+    if test_connection(url, &login_context.config)? {
         println!("Successfully connected to Elasticsearch!");
         println!("Credentials are temporarily stored in ~/.esq/config.toml");
         println!("Remove them after use with the 'logout' command");
-        
-        save_config(&Config { default: login_context.config.clone() }, config_file)?;
-        return Ok(());
+
+        save_config(
+            &Config {
+                default: login_context.config.clone(),
+            },
+            config_file,
+        )?;
+        Ok(())
     } else {
         println!("Authentication failed with provided credentials.");
-        return Err(ESQError::AuthError);
+        Err(ESQError::AuthError)
     }
 }
 
 // Handle the login command, managing the login process
-pub fn handle_login_command(existing_config: Option<Config>, config_file: &PathBuf) -> Result<(), ESQError> {
+pub fn handle_login_command(
+    existing_config: Option<Config>,
+    config_file: &PathBuf,
+) -> Result<(), ESQError> {
     // Create a login context by calling the get_url function with existing_config if it exists
     let url = get_url(&None, &existing_config)?;
     let mut login_context = LoginContext::new(DefaultConfig {
@@ -156,10 +163,22 @@ pub fn handle_login_command(existing_config: Option<Config>, config_file: &PathB
     }
 
     // Attempt to connect to the server without authentication
-    if test_connection(&url, &DefaultConfig { username: None, password: None, ..Default::default() })? {
+    if test_connection(
+        &url,
+        &DefaultConfig {
+            username: None,
+            password: None,
+            ..Default::default()
+        },
+    )? {
         println!("Successfully connected to Elasticsearch!");
-        save_config(&Config { default: login_context.config.clone() }, config_file)?;
-        return Ok(());
+        save_config(
+            &Config {
+                default: login_context.config.clone(),
+            },
+            config_file,
+        )?;
+        Ok(())
     } else {
         // If an authentication error occurs (401 code)
         let (username, password) = get_credentials(&existing_config)?;
@@ -167,7 +186,6 @@ pub fn handle_login_command(existing_config: Option<Config>, config_file: &PathB
         login_context.config.password = Some(password);
         // Attempt to connect with authentication
         attempt_connection(&url, &mut login_context, config_file)?;
-        return Ok(());
+        Ok(())
     }
 }
-
